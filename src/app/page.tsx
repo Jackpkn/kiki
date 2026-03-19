@@ -18,29 +18,43 @@ import StoryChapters from "@/components/StoryChapters";
 import MemoryReel from "@/components/MemoryReel";
 import JourneyTimeline from "@/components/JourneyTimeline";
 import DreamPlanner from "@/components/DreamPlanner";
+import FloatingNav from "@/components/FloatingNav";
+import ScrollProgress from "@/components/ScrollProgress";
+import BackToTop from "@/components/BackToTop";
+import CursorGlow from "@/components/CursorGlow";
+import LoveGate from "@/components/LoveGate";
 import type { Destination } from "@/types/destination";
 import { defaultDestinations } from "@/data/destinations";
 
 export default function Home() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]           = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [showAddDialog, setShowAddDialog]           = useState(false);
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
   const [isDark, setIsDark] = useState(false);
+  const [gateAccepted, setGateAccepted] = useState(true); // true = skip until we check storage
+
+  // Check session storage — show gate only once per session
+  useEffect(() => {
+    const accepted = sessionStorage.getItem('love-gate-accepted');
+    if (!accepted) setGateAccepted(false);
+  }, []);
+
+  const handleGateAccept = () => {
+    sessionStorage.setItem('love-gate-accepted', '1');
+    setGateAccepted(true);
+  };
 
   useEffect(() => {
     const fetchDestinations = async () => {
       try {
-        const res = await fetch("/api/destinations");
+        const res  = await fetch("/api/destinations");
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const text = await res.text();
-        try {
-          setDestinations(JSON.parse(text));
-        } catch {
-          setDestinations(defaultDestinations);
-        }
+        try { setDestinations(JSON.parse(text)); }
+        catch { setDestinations(defaultDestinations); }
       } catch {
         setDestinations(defaultDestinations);
       } finally {
@@ -93,6 +107,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-500">
+      {/* Love gate — blocks entry until accepted */}
+      {!gateAccepted && <LoveGate onAccept={handleGateAccept} />}
+
+      {/* Global UI chrome */}
+      <CursorGlow />
+      <ScrollProgress />
+      <FloatingNav />
+      <BackToTop />
+
       {/* Theme toggle */}
       <div className="fixed top-6 right-6 z-50">
         <ThemeToggle isDark={isDark} onToggle={() => setIsDark(!isDark)} />
@@ -104,7 +127,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-6 md:px-12">
 
         {/* ── Intro + Stats ── */}
-        <section className="py-24">
+        <section id="story" className="py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
             <div className="lg:col-span-5 space-y-10">
               <motion.div
@@ -149,7 +172,6 @@ export default function Home() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 
-                  {/* Top label */}
                   <div className="absolute top-6 left-6">
                     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/90 text-white text-xs font-bold uppercase tracking-widest shadow-lg">
                       <Sparkles className="w-3.5 h-3.5" />
@@ -157,7 +179,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Bottom content */}
                   <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
                     <div>
                       <p className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1">{featuredDestination.country}</p>
@@ -202,9 +223,8 @@ export default function Home() {
       <JourneyTimeline destinations={destinations} />
 
       <main className="max-w-7xl mx-auto px-6 md:px-12">
-
         {/* ── Story Chapters ── */}
-        <section className="py-24">
+        <section id="chapters" className="py-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -224,16 +244,19 @@ export default function Home() {
         </section>
       </main>
 
-      {/* ── Memory Reel (dark bg) ── */}
-      <MemoryReel destinations={destinations} onDestinationClick={setSelectedDestination} />
+      {/* ── Memory Reel ── */}
+      <div id="memories">
+        <MemoryReel destinations={destinations} onDestinationClick={setSelectedDestination} />
+      </div>
 
       {/* ── Dream Planner ── */}
-      <DreamPlanner destinations={destinations} />
+      <div id="dreams">
+        <DreamPlanner destinations={destinations} />
+      </div>
 
       {/* ── The Collection ── */}
-      <main className="max-w-7xl mx-auto px-6 md:px-12 pb-24">
+      <main id="collection" className="max-w-7xl mx-auto px-6 md:px-12 pb-24">
         <section className="space-y-10">
-          {/* Section header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-8">
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
@@ -258,12 +281,13 @@ export default function Home() {
             </motion.button>
           </div>
 
-          {/* Filter bar */}
+          {/* Filter bar — now with destination counts */}
           <FilterBar
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            destinations={destinations}
           />
 
           {/* Grid */}
@@ -293,7 +317,6 @@ export default function Home() {
           )}
         </section>
 
-        {/* Travel Tips */}
         <div className="mt-24">
           <TravelTips />
         </div>
